@@ -1,4 +1,4 @@
-import { angleReference, sidePose } from './angles.js';
+import { angleReference, sidePose, angleCrop } from './angles.js';
 
 const imageCache=new Map();
 export function loadImage(src){
@@ -54,19 +54,6 @@ function recolorHair(canvas,color,hair){
  }
  ctx.putImageData(data,0,0);return c;
 }
-let normalFace;
-async function applyExpression(ctx,expression){
- if(expression!=='normal')return;
- if(!normalFace)normalFace=(async()=>{
-  const [source,removed]=await Promise.all([loadImage('/assets/expressions/normal-source.jpg'),loadImage('/assets/expressions/normal-no-glasses.jpg')]),clean=makeCanvas(1920,1280),x=clean.getContext('2d');x.drawImage(source,0,0,1920,1280);
-  const patch=makeCanvas(1920,1280),p=patch.getContext('2d');p.drawImage(removed,0,0,1920,1280);
-  const mask=makeCanvas(1920,1280),m=mask.getContext('2d');m.filter='blur(8px)';m.fillStyle='white';m.beginPath();m.roundRect(711,432,570,185,24);m.fill();
-  p.globalCompositeOperation='destination-in';p.drawImage(mask,0,0);x.drawImage(patch,0,0);
-  const c=makeCanvas(),aligned=c.getContext('2d');aligned.setTransform(.714,.1,-.1,.714,-234.8,-37.7);aligned.drawImage(clean,0,0);aligned.resetTransform();
-  const face=makeCanvas(),f=face.getContext('2d');f.filter='blur(12px)';f.fillStyle='white';f.beginPath();f.moveTo(280,329);f.bezierCurveTo(370,319,490,340,569,375);f.bezierCurveTo(594,434,587,525,558,588);f.bezierCurveTo(536,646,486,698,428,714);f.bezierCurveTo(371,722,313,676,277,613);f.bezierCurveTo(241,553,234,444,280,329);f.fill();aligned.globalCompositeOperation='destination-in';aligned.drawImage(face,0,0);return c;
- })().catch(error=>{normalFace=undefined;throw error;});
- ctx.drawImage(await normalFace,0,0);
-}
 async function photoFrame(item){
  const key=`${item.family}-${item.finish}`;if(frameCache.has(key))return frameCache.get(key);
  if(frameCache.size>12)frameCache.delete(frameCache.keys().next().value);
@@ -96,8 +83,8 @@ function frontTemples(ctx,frame,state,w,h) {
  const transform=point=>{const x=(point.x/frame.width-.5)*w,y=(point.y/frame.height-.5)*h;return [cx+x*Math.cos(angle)-y*Math.sin(angle),cy+x*Math.sin(angle)+y*Math.cos(angle)];};
  frame.hinges.forEach((hinge,index)=>{const start=transform(hinge),side=index===0?-1:1,end=index===0?[224,407]:[624,452];paintTemple(ctx,[start,[start[0]+side*20,start[1]+2],[end[0]-side*6,end[1]-16],end],state.glasses,templeWidth(state.glasses)*state.glassesScale);});
 }
-async function profileEyewear(ctx,state,reference) {
- const frame=await photoFrame(state.glasses),pose=sidePose(reference.id),scale=state.glassesScale;
+async function profileEyewear(ctx,state,reference,image) {
+ const frame=await photoFrame(state.glasses),pose=sidePose(reference.id,image.naturalWidth,image.naturalHeight),scale=state.glassesScale*pose.scale;
  const width=38*scale,height=Math.min(128,Math.max(78,320*frame.height/frame.width))*scale,cx=pose.lens[0]+state.glassesX,cy=pose.lens[1]+state.glassesY;
  const hinge=[cx-width*.43,cy-height*.33],ear=pose.ear;
  paintTemple(ctx,[hinge,[hinge[0]-70,hinge[1]-3],[ear[0]+40,ear[1]-7],ear],state.glasses,templeWidth(state.glasses)*scale);
@@ -109,7 +96,6 @@ async function profileEyewear(ctx,state,reference) {
 export async function drawRealPreview(canvas,state,photo){
  const c=makeCanvas(),ctx=c.getContext('2d');
  if(state.hasCustomPhoto){const ratio=Math.max(800/photo.width,1000/photo.height);ctx.drawImage(photo,(800-photo.width*ratio)/2,(1000-photo.height*ratio)/2,photo.width*ratio,photo.height*ratio);}else{const base=state.original?await preservedPhoto({id:'natural'}):await preservedPhoto(state.hair);ctx.drawImage(state.original?base:recolorHair(base,state.color,state.hair),0,0);}
- if(!state.original&&!state.hasCustomPhoto)await applyExpression(ctx,state.expression);
  if(!state.original&&state.glasses.family!=='none'){
   const frame=await photoFrame(state.glasses),w=320*state.glassesScale,h=w*frame.height/frame.width;
   frontTemples(ctx,frame,state,w,h);
@@ -121,8 +107,10 @@ export async function drawRealPreview(canvas,state,photo){
  canvas.getContext('2d').clearRect(0,0,800,1000);canvas.getContext('2d').drawImage(c,0,0);return canvas;
 }
 export async function drawAngle(canvas,hair,angle,state){
- const reference=angleReference(hair);if(!reference)throw new Error(`No angle photos for ${hair.id}`);const image=await loadImage(`/assets/real/${reference.id}-angles.jpg`),half=image.naturalWidth/2,c=makeCanvas(),ctx=c.getContext('2d');
- ctx.drawImage(image,angle==='side'?0:half,0,half,image.naturalHeight,0,0,800,1000);
- if(angle==='side'&&state&&!state.original&&state.glasses.family!=='none')await profileEyewear(ctx,state,reference);
+ const reference=angleReference(hair);if(!reference)throw new Error(`No angle photos for ${hair.id}`);const image=await loadImage(`/assets/real/${reference.id}-angles.jpg`),c=makeCanvas(),ctx=c.getContext('2d');
+ const crop=angleCrop(image.naturalWidth,image.naturalHeight,angle);
+ if(crop.displayX){ctx.save();ctx.filter='blur(20px)';const edge=crop.width*.1;ctx.drawImage(image,crop.x,crop.y,edge,crop.height,-20,-20,crop.displayX+40,1040);ctx.drawImage(image,crop.x+crop.width-edge,crop.y,edge,crop.height,800-crop.displayX-20,-20,crop.displayX+40,1040);ctx.restore();}
+ ctx.drawImage(image,crop.x,crop.y,crop.width,crop.height,crop.displayX,0,crop.displayWidth,1000);
+ if(angle==='side'&&state&&!state.original&&state.glasses.family!=='none')await profileEyewear(ctx,state,reference,image);
  canvas.getContext('2d').clearRect(0,0,800,1000);canvas.getContext('2d').drawImage(c,0,0);
 }
