@@ -1,3 +1,5 @@
+import { angleReference, sidePose } from './angles.js';
+
 const imageCache=new Map();
 export function loadImage(src){
  if(imageCache.size>18)imageCache.delete(imageCache.keys().next().value);
@@ -56,20 +58,47 @@ async function photoFrame(item){
  const key=`${item.family}-${item.finish}`;if(frameCache.has(key))return frameCache.get(key);
  if(frameCache.size>12)frameCache.delete(frameCache.keys().next().value);
  const pending=(async()=>{
+  // Folded product arms cross the lenses and must not sit over the eyes.
   const image=await loadImage(`/assets/frames/${item.family}.png`),c=makeCanvas(image.naturalWidth,image.naturalHeight),ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);const holes=[clearLensInterior(ctx,c.width,c.height,.25),clearLensInterior(ctx,c.width,c.height,.75)];
   const data=ctx.getImageData(0,0,c.width,c.height),p=data.data;let minX=c.width,maxX=0,minY=c.height,maxY=0;
   for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++){const i=(y*c.width+x)*4;if(p[i+3]>48){minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);}}
   if(maxX<=minX)throw Error('Empty frame');
   const native={panto:'black',rectangle:'black',round:'gold',wayfarer:'tortoise',browline:'black',aviator:'gold',geometric:'gold',rimless:'silver',oval:'black',square:'black',navigator:'gold',octagon:'silver','cat-eye':'black',butterfly:'tortoise','semi-rimless':'silver',sport:'black'};const colors={black:[30,29,27],tortoise:[104,66,32],gold:[176,144,80],clear:[174,175,166]},target=colors[item.finish];
   for(let y=minY;y<=maxY;y++)for(let x=minX;x<=maxX;x++){const i=(y*c.width+x)*4;if(p[i+3]<6||item.finish===native[item.family])continue;const lum=(p[i]+p[i+1]+p[i+2])/3,highlight=Math.max(0,lum-100)*.9;for(let k=0;k<3;k++)p[i+k]=Math.min(255,target[k]*(.5+lum/360)+highlight);if(item.finish==='tortoise'){const fleck=Math.sin(x*.05+y*.09)*Math.sin(x*.031-y*.05);if(fleck>.25){p[i]=Math.min(255,p[i]*1.6);p[i+1]=Math.min(255,p[i+1]*1.5);p[i+2]=Math.min(255,p[i+2]*1.3);}}if(item.finish==='clear')p[i+3]*=.45;}
-  ctx.putImageData(data,0,0);const crop=makeCanvas(maxX-minX+1,maxY-minY+1);crop.getContext('2d').drawImage(c,minX,minY,crop.width,crop.height,0,0,crop.width,crop.height);const mask=makeCanvas(crop.width,crop.height),m=mask.getContext('2d');m.fillStyle='white';for(let side=0;side<holes.length;side++){const hull=holes[side];if(!hull){m.beginPath();m.roundRect(crop.width*(side===0?.055:.545),crop.height*.17,crop.width*.40,crop.height*.68,8);m.fill();continue;}m.beginPath();if(hull)hull.forEach(([x,y],i)=>i?m.lineTo(x-minX,y-minY):m.moveTo(x-minX,y-minY));m.closePath();m.fill();}crop.lensMask=mask;return crop;
+  ctx.putImageData(data,0,0);const crop=makeCanvas(maxX-minX+1,maxY-minY+1);crop.getContext('2d').drawImage(c,minX,minY,crop.width,crop.height,0,0,crop.width,crop.height);const mask=makeCanvas(crop.width,crop.height),m=mask.getContext('2d');m.fillStyle='white';for(let side=0;side<holes.length;side++){const hull=holes[side];if(!hull){m.beginPath();m.roundRect(crop.width*(side===0?.055:.545),crop.height*.17,crop.width*.40,crop.height*.68,8);m.fill();continue;}m.beginPath();if(hull)hull.forEach(([x,y],i)=>i?m.lineTo(x-minX,y-minY):m.moveTo(x-minX,y-minY));m.closePath();m.fill();}crop.lensMask=mask;
+  crop.hinges=[0,1].map(side=>{let weight=0,weightedY=0;const start=side===0?minX:maxX-Math.ceil(crop.width*.025),end=side===0?minX+Math.ceil(crop.width*.025):maxX;for(let y=minY;y<=maxY;y++)for(let x=start;x<=end;x++){const alpha=p[(y*c.width+x)*4+3];if(alpha>30){weight+=alpha;weightedY+=(y-minY)*alpha;}}return {x:side===0?0:crop.width,y:Math.max(crop.height*.12,Math.min(crop.height*.55,weight?weightedY/weight:crop.height*.25))};});return crop;
  })();frameCache.set(key,pending);try{return await pending;}catch(e){frameCache.delete(key);throw e;}
 }
+function templeWidth(item) {
+ const metal=['round','oval','aviator','navigator','geometric','octagon','rimless','semi-rimless'].includes(item.family)||item.finish==='gold';
+ return metal?2.8:5.2;
+}
+function paintTemple(ctx,points,item,width) {
+ const [start,c1,c2,end]=points,palettes={black:['#171917','#50524a','#171917'],tortoise:['#37251b','#9d703e','#483020'],gold:['#79602f','#e0c48a','#91703b'],clear:['#939d9766','#e5e9ddb0','#68786d50']},palette=palettes[item.finish];
+ const gradient=ctx.createLinearGradient(start[0],start[1]-3,end[0],end[1]+5);gradient.addColorStop(0,palette[0]);gradient.addColorStop(.44,palette[1]);gradient.addColorStop(.88,palette[2]);gradient.addColorStop(1,palette[2]);
+ ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(...start);ctx.bezierCurveTo(...c1,...c2,...end);ctx.strokeStyle=gradient;ctx.lineWidth=width;ctx.shadowColor='#1a17192e';ctx.shadowBlur=2;ctx.shadowOffsetY=2;ctx.stroke();ctx.shadowColor='transparent';ctx.strokeStyle=item.finish==='gold'?'#fff0c477':'#f4f5e633';ctx.lineWidth=Math.max(.7,width*.16);ctx.translate(0,-width*.25);ctx.stroke();ctx.restore();
+}
+function frontTemples(ctx,frame,state,w,h) {
+ const cx=425+state.glassesX,cy=413+state.glassesY,angle=state.glassesRotation;
+ const transform=point=>{const x=(point.x/frame.width-.5)*w,y=(point.y/frame.height-.5)*h;return [cx+x*Math.cos(angle)-y*Math.sin(angle),cy+x*Math.sin(angle)+y*Math.cos(angle)];};
+ frame.hinges.forEach((hinge,index)=>{const start=transform(hinge),side=index===0?-1:1,end=index===0?[224,407]:[624,452];paintTemple(ctx,[start,[start[0]+side*20,start[1]+2],[end[0]-side*6,end[1]-16],end],state.glasses,templeWidth(state.glasses)*state.glassesScale);});
+}
+async function profileEyewear(ctx,state,reference) {
+ const frame=await photoFrame(state.glasses),pose=sidePose(reference.id),scale=state.glassesScale;
+ const width=38*scale,height=Math.min(128,Math.max(78,320*frame.height/frame.width))*scale,cx=pose.lens[0]+state.glassesX,cy=pose.lens[1]+state.glassesY;
+ const hinge=[cx-width*.43,cy-height*.33],ear=pose.ear;
+ paintTemple(ctx,[hinge,[hinge[0]-70,hinge[1]-3],[ear[0]+40,ear[1]-7],ear],state.glasses,templeWidth(state.glasses)*scale);
+ ctx.save();ctx.translate(cx,cy);ctx.rotate(state.glassesRotation-.12);ctx.transform(1,0,pose.slant,1,0,0);
+ if(state.tint!=='clear'){const tint=makeCanvas(frame.width,frame.height),t=tint.getContext('2d');t.fillStyle=state.tint==='smoke'?'#283230':'#a16f30';t.fillRect(0,0,tint.width,tint.height);t.globalCompositeOperation='destination-in';t.drawImage(frame.lensMask,0,0);ctx.globalAlpha=.45;ctx.drawImage(tint,frame.width*.48,0,frame.width*.52,frame.height,-width/2,-height/2,width,height);ctx.globalAlpha=1;}
+ ctx.shadowColor='#211c1628';ctx.shadowBlur=2;ctx.shadowOffsetX=-1;ctx.shadowOffsetY=2;ctx.drawImage(frame,frame.width*.48,0,frame.width*.52,frame.height,-width/2,-height/2,width,height);ctx.restore();
+}
+
 export async function drawRealPreview(canvas,state,photo){
  const c=makeCanvas(),ctx=c.getContext('2d');
  if(state.hasCustomPhoto){const ratio=Math.max(800/photo.width,1000/photo.height);ctx.drawImage(photo,(800-photo.width*ratio)/2,(1000-photo.height*ratio)/2,photo.width*ratio,photo.height*ratio);}else{const base=state.original?await preservedPhoto({id:'natural'}):await preservedPhoto(state.hair);ctx.drawImage(state.original?base:recolorHair(base,state.color,state.hair),0,0);}
  if(!state.original&&state.glasses.family!=='none'){
   const frame=await photoFrame(state.glasses),w=320*state.glassesScale,h=w*frame.height/frame.width;
+  frontTemples(ctx,frame,state,w,h);
   ctx.save();ctx.translate(425+state.glassesX,413+state.glassesY);ctx.rotate(state.glassesRotation);if(state.tint!=='clear'){
    const tint=makeCanvas(frame.width,frame.height),t=tint.getContext('2d');t.fillStyle=state.tint==='smoke'?'#283230':'#a16f30';t.fillRect(0,0,tint.width,tint.height);t.globalCompositeOperation='destination-in';t.drawImage(frame.lensMask,0,0);ctx.save();ctx.globalAlpha=.52;ctx.drawImage(tint,-w/2,-h/2,w,h);ctx.restore();
   }
@@ -77,6 +106,9 @@ export async function drawRealPreview(canvas,state,photo){
  }
  canvas.getContext('2d').clearRect(0,0,800,1000);canvas.getContext('2d').drawImage(c,0,0);return canvas;
 }
-export async function drawAngle(canvas,hair,angle){
- const image=await loadImage(`/assets/real/${hair.id}-angles.jpg`),half=image.naturalWidth/2;canvas.getContext('2d').drawImage(image,angle==='side'?0:half,0,half,image.naturalHeight,0,0,800,1000);
+export async function drawAngle(canvas,hair,angle,state){
+ const reference=angleReference(hair),image=await loadImage(`/assets/real/${reference.id}-angles.jpg`),half=image.naturalWidth/2,c=makeCanvas(),ctx=c.getContext('2d');
+ ctx.drawImage(image,angle==='side'?0:half,0,half,image.naturalHeight,0,0,800,1000);
+ if(angle==='side'&&state&&!state.original&&state.glasses.family!=='none')await profileEyewear(ctx,state,reference);
+ canvas.getContext('2d').clearRect(0,0,800,1000);canvas.getContext('2d').drawImage(c,0,0);
 }

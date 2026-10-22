@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "check": "node --check src/app.js && node --check src/catalog.js && node --check src/real-preview.js && node --check src/art.js && node scripts/verify-assets.mjs",
+    "check": "node --check src/angles.js && node --check src/app.js && node --check src/catalog.js && node --check src/real-preview.js && node --check src/art.js && node scripts/verify-assets.mjs",
     "test": "node scripts/verify.mjs"
   },
   "devDependencies": {
