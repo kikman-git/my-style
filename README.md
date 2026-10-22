@@ -1,6 +1,6 @@
 # My Style
 
-A private personal hairstyle and eyewear fitting room built around the supplied smiling portrait.
+A personal hairstyle and eyewear fitting room built around the supplied smiling portrait.
 
 - Smiling face only. There is no expression selector or non-smiling photo asset.
 - 59 hairstyles with individual front, side and back images; no shared hairstyle angle references.
@@ -9,6 +9,8 @@ A private personal hairstyle and eyewear fitting room built around the supplied 
 - Per-hairstyle after-shower routines, local saved looks, and PNG exports.
 
 ## Run and verify
+
+Run commands from the repository root; there is no nested app directory.
 
 ```sh
 npm install
