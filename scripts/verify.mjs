@@ -7,6 +7,7 @@ page.on('pageerror',e=>errors.push(e.message));
 await page.goto(process.env.STYLE_TEST_URL||'http://localhost:5173/');
 await page.locator('#model-loading').waitFor({state:'hidden'});
 assert.equal(await page.locator('#hair-list .style-card').count(),59);
+const bounds=await page.evaluate(()=>({hair:document.querySelector('.hair-panel').getBoundingClientRect().height,frames:document.querySelector('.glasses-panel').getBoundingClientRect().height,preview:document.querySelector('.preview-panel').getBoundingClientRect().height}));assert.ok(bounds.hair<=bounds.preview+2&&bounds.frames<=bounds.preview+2,'Desktop catalogs must stay within the preview height and scroll internally');
 assert.equal(await page.locator('#glasses-list .style-card').count(),65);
 const paths=Object.keys(JSON.parse(fs.readFileSync('asset-provenance.json'))).map(x=>`/assets/${x}`);
 const failures=await page.evaluate(async paths=>{const failures=[];for(const path of paths){try{const r=await fetch(path);if(!r.ok)throw Error(r.status);const image=await createImageBitmap(await r.blob());if(image.width<50||image.height<50)throw Error('size');image.close();}catch{failures.push(path);}}return failures;},paths);assert.deepEqual(failures,[],'Every photographic catalog asset must load and decode');
