@@ -54,6 +54,15 @@ function recolorHair(canvas,color,hair){
  }
  ctx.putImageData(data,0,0);return c;
 }
+let normalFace;
+async function applyExpression(ctx,expression){
+ if(expression!=='normal')return;
+ if(!normalFace)normalFace=(async()=>{
+  const image=await loadImage('/assets/expressions/normal.jpg'),c=makeCanvas(),x=c.getContext('2d');x.drawImage(image,0,0,800,1000);
+  const mask=makeCanvas(),m=mask.getContext('2d');m.filter='blur(9px)';m.fillStyle='white';m.beginPath();m.moveTo(274,477);m.bezierCurveTo(300,484,327,495,347,505);m.bezierCurveTo(347,544,369,559,408,563);m.bezierCurveTo(450,570,480,559,494,540);m.bezierCurveTo(513,525,548,518,579,514);m.bezierCurveTo(602,571,567,657,504,699);m.bezierCurveTo(451,733,382,713,333,674);m.bezierCurveTo(282,633,256,547,274,477);m.fill();x.globalCompositeOperation='destination-in';x.drawImage(mask,0,0);return c;
+ })().catch(error=>{normalFace=undefined;throw error;});
+ ctx.drawImage(await normalFace,0,0);
+}
 async function photoFrame(item){
  const key=`${item.family}-${item.finish}`;if(frameCache.has(key))return frameCache.get(key);
  if(frameCache.size>12)frameCache.delete(frameCache.keys().next().value);
@@ -96,6 +105,7 @@ async function profileEyewear(ctx,state,reference) {
 export async function drawRealPreview(canvas,state,photo){
  const c=makeCanvas(),ctx=c.getContext('2d');
  if(state.hasCustomPhoto){const ratio=Math.max(800/photo.width,1000/photo.height);ctx.drawImage(photo,(800-photo.width*ratio)/2,(1000-photo.height*ratio)/2,photo.width*ratio,photo.height*ratio);}else{const base=state.original?await preservedPhoto({id:'natural'}):await preservedPhoto(state.hair);ctx.drawImage(state.original?base:recolorHair(base,state.color,state.hair),0,0);}
+ if(!state.original&&!state.hasCustomPhoto)await applyExpression(ctx,state.expression);
  if(!state.original&&state.glasses.family!=='none'){
   const frame=await photoFrame(state.glasses),w=320*state.glassesScale,h=w*frame.height/frame.width;
   frontTemples(ctx,frame,state,w,h);
