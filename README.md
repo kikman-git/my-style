@@ -5,8 +5,8 @@ A private personal hairstyle and eyewear fitting room, built around the supplied
 - 59 hairstyle choices, including the original, with photographic edits.
 - 65 frame options across 16 shapes and four finishes, including no glasses.
 - Eight hair colors, clear/smoke/amber lenses, adjustable frame alignment.
-- Normal / Smiling expression selector in front view. Smiling preserves the source expression; Normal composites a prepared neutral mouth and cheeks while preserving the original eyes, nose and facial outline.
-- Always-visible Front, Side, and Back controls, with 21 hairstyle-specific angle boards and labeled related-cut references for other variants. This is a photographic angle viewer, not a rotatable 3D scan.
+- Normal / Smiling expression selector in front view. Smiling preserves the source expression; Normal aligns the full resting face from the supplied non-smiling photograph, with the existing eyewear removed for try-on.
+- Always-visible Front, Side, and Back controls, with 21 hairstyle-specific angle boards. Other variants are labeled Front only and their Side/Back controls are disabled until their own images exist. This is a photographic angle viewer, not a rotatable 3D scan.
 - Per-hairstyle after-shower routines, local saved looks, and PNG exports.
 
 ## Run
@@ -36,15 +36,17 @@ Frame prompt template: “Strict front-on photographic product cutout of [frame 
 
 Angle prompt template: “Two equal 4:5 panels showing the exact person's right-facing side and back with [hairstyle], using the supplied front and actual profile references. Match black shirt and restaurant lighting. Back is a plausible barber interpretation. Photographs, no text or 3D render.”
 
-The Normal expression asset is saved at `public/assets/expressions/normal.jpg`, generated with the built-in ImageGen tool from `public/assets/original.jpg`. Only the mouth and cheeks are blended into the preview; hairstyle photographs and fitted eyewear are reused. Final prompt:
+Normal uses an unaltered copy of `Photo on 2026-10-22 at 15.33 #2.jpg`, saved at `public/assets/expressions/normal-source.jpg`. Its full resting face is aligned to the existing photographic hairstyle previews. The mouth, nose and lower face come directly from the source pixels. A built-in ImageGen glasses-removal edit is saved at `public/assets/expressions/normal-no-glasses.jpg`; only the eyewear area is blended in to clear the existing frame and lens tint. The earlier generated neutral expression is no longer used.
+
+Final glasses-removal prompt:
 
 ```text
 Use case: identity-preserve
-Asset type: alternate facial-expression photograph for the supplied person's personal hairstyle try-on app.
-Input image 1 is the edit target. Change ONLY his smile into a natural relaxed neutral expression: lips gently closed, corners relaxed, no visible teeth, cheeks naturally at rest. He should look calm and approachable, not stern, sad or angry.
-Preserve exact identity, facial proportions, nose, eyebrows, ears, eye positions and gaze, facial hair and skin texture. Do not beautify, slim, age, reshape or smooth the face. Keep the head tilt, exact framing and scale, hairstyle, glasses perched on his hair, black shirt, restaurant background, lighting, exposure and colors unchanged. Preserve the image registration precisely so the neutral mouth and cheeks can be composited onto the original without moving the rest of the photograph. Same 4:5 portrait composition. Photorealistic photographic edit, no text or graphics.
+Input image 1 is the edit target: this person's real non-smiling photograph.
+Remove ONLY the eyeglasses from his face, realistically reconstructing the thin strips of skin currently covered by the frame. Keep his exact neutral unsmiling facial expression: mouth closed with flat relaxed corners, no smile, no smirk, no teeth, eyes fully at rest as in the input.
+Preserve everything else unchanged: exact face geometry, mouth and nose, eye positions and gaze, eyelids, eyebrows, skin texture and blemishes, facial hair, jawline, hair and hairline, head position, tilt, scale, clothing, background, lighting and colors. Do not beautify or change his face. Retain precise pixel registration, same uncropped landscape composition. No text or graphics. A very conservative photographic glasses-removal edit, not a new portrait.
 ```
 
 `asset-provenance.json` records the generated source for each prepared asset. The frontend aligns hair photographs to the source and restores the central face with a feathered mask. Folded arms inside product-photo lenses are cleared. Connected temple arms are fitted from the frame hinges to the ears, with matching material shading. Side views use calibrated eye and ear anchors for each reference photo. Frames retain a subtle shadow, head tilt, and optional tint.
 
-AI-generated expression details, hairlines, fringe, temples, and unseen angles remain estimates. Smiling preserves the original central facial pixels; Normal changes the mouth and cheeks. This is not a physical fitting, facial scan, or guarantee that a haircut will behave the same on your natural hair.
+AI-generated glasses-removal details, hairlines, fringe, temples, and unseen angles remain estimates. Smiling preserves the original central facial pixels; Normal uses the supplied non-smiling face, aligned and feathered into the prepared hairstyle photographs. This is not a physical fitting, facial scan, or guarantee that a haircut will behave the same on your natural hair.

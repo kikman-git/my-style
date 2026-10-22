@@ -1,11 +1,6 @@
-import { hairstyles } from './catalog.js';
-
 export const angleStyles = new Set(['natural', 'curtains', 'side-part', 'textured-crop', 'quiff', 'comma', 'slick-back', 'two-block', 'buzz', 'low-fade', 'waves', 'flow', 'shag', 'pompadour', 'undercut', 'messy-fringe', 'curls', 'bob', 'top-knot', 'faux-hawk', 'bald']);
-const families = { natural: 'natural', curtains: 'curtains', comma: 'comma', part: 'side-part', crop: 'textured-crop', quiff: 'quiff', pomp: 'pompadour', slick: 'slick-back', bowl: 'two-block', buzz: 'buzz', fade: 'low-fade', undercut: 'undercut', fringe: 'messy-fringe', waves: 'waves', curls: 'curls', shag: 'shag', flow: 'flow', bob: 'bob', bun: 'top-knot', hawk: 'faux-hawk', bald: 'bald' };
-
 export function angleReference(hair) {
-  const id = angleStyles.has(hair.id) ? hair.id : families[hair.family];
-  return { id, name: hairstyles.find(style => style.id === id).name, sameStyle: id === hair.id };
+  return angleStyles.has(hair.id) ? { id: hair.id, name: hair.name } : null;
 }
 
 const profileLandmarks = {
